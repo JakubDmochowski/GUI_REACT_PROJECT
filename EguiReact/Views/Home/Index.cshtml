@@ -1,94 +1,706 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
-}
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>EGUI React Laboratory</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="https://fb.me/react-15.0.0.js"></script>
+    <script src="https://fb.me/react-dom-15.0.0.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        .wrapper {
+            margin-top: 4rem;
+        }
+        .my-custom-scrollbar {
+            position: relative;
+            height: calc(100vh - 11.5rem - 128px - 36px);
+            min-height: 100px;
+            overflow: auto;
+        }
+        .table-wrapper-scroll-y {
+            display: block;
+        }
+    </style>
+    <link
+        rel="stylesheet"
+        href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+        crossorigin="anonymous"
+    >
+    <script type="text/babel">
+        class App extends React.Component {
+        constructor(props) {
+            super(props)
+            this.handleBooksChange = this.handleBooksChange.bind(this);
+            this.handleAuthorFilterChange = this.handleAuthorFilterChange.bind(this);
+            this.handleTitleFilterChange = this.handleTitleFilterChange.bind(this);
+            this.handleYearFilterChange = this.handleYearFilterChange.bind(this);
+            this.handleClearFilters = this.handleClearFilters.bind(this);
+            this.updateItem = this.updateItem.bind(this);
+            this.createItem = this.createItem.bind(this);
+            this.deleteSelectedItems = this.deleteSelectedItems.bind(this);
+            this.state = {
+                books: [],
+                filters: {
+                    author: "",
+                    title: "",
+                    year: "",
+                }
+            }
+        }
+        componentDidMount() {
+            axios.get('/Home/List')
+                .then(response => {
+                    this.setState({
+                        books: response.data.reduce((acc, curr) => {
+                            acc.push({
+                                ...curr,
+                                checked: false,
+                            })
+                            return acc
+                        }, []),
+                        filters: this.state.filters
+                    })
+                })
+        }
+        handleBooksChange (newBooks, event) {
+            this.setState((prevState, props) => ({
+                books: newBooks,
+                filters: {
+                    author: prevState.filters.author,
+                    title: prevState.filters.title,
+                    year: prevState.filters.year
+                }
+            }))
+        }
+        handleAuthorFilterChange (event) {
+            event.persist()
+            this.setState((prevState, props) => ({
+                books: prevState.books,
+                filters: {
+                    author: event.target.value,
+                    title: prevState.filters.title,
+                    year: prevState.filters.year
+                }
+            }))
+        }
+        handleTitleFilterChange (event) {
+            event.persist()
+            this.setState((prevState, props) => ({
+                books: prevState.books,
+                filters: {
+                    author: prevState.filters.author,
+                    title: event.target.value,
+                    year: prevState.filters.year
+                }
+            }))
+        }
+        handleYearFilterChange (event) {
+            event.persist()
+            this.setState((prevState, props) => ({
+                books: prevState.books,
+                filters: {
+                    author: prevState.filters.author,
+                    title: prevState.filters.title,
+                    year: event.target.value
+                }
+            }))
+        }
+        handleClearFilters () {
+            this.setState((prevState, props) => ({
+                books: prevState.books,
+                filters: {
+                    author: "",
+                    title: "",
+                    year: ""
+                }
+            }))
+        }
+        createItem (data) {
+            const newBooks = Array.from(this.state.books)
+            newBooks.push({
+                id: data.id,
+                author: data.author,
+                title: data.title,
+                year: data.year,
+                checked: false,
+            })
+            this.setState((prevState, props) => ({
+                books: newBooks,
+                filters: prevState.filters
+            }))
+        }
+        updateItem (data) {
+            const newBooks = Array.from(this.state.books)
+            const updatedBook = newBooks.find(b => b.id == data.id)
+            if(updatedBook) {
+                updatedBook.author = data.author
+                updatedBook.title = data.title
+                updatedBook.year = data.year
+                this.setState((prevState, props) => ({
+                    books: newBooks,
+                    filters: prevState.filters
+                }))
+            }
+        }
+        deleteSelectedItems () {
+            const filteredBooks = this.state.books
+                .filter(b => b.checked)
+                .filter(book => {
+                    return book.author.includes(this.state.filters.author)
+                        && book.title.includes(this.state.filters.title)
+                        && book.year.includes(this.state.filters.year)
+                })
+                .reduce((acc, curr) => {
+                    acc.push(curr.id)
+                    return acc
+                }, [])
+            const newBooks = this.state.books.filter(book => !filteredBooks.includes(book.id))
+            this.setState((prevState) => ({
+                books: newBooks,
+                filters: prevState.filters
+            }))
+        }
+        render() {
+            return (
+                <div className="container">
+                    <div className="wrapper">
+                        <Filters
+                            filters={this.state.filters}
+                            onAuthorFilterChange={this.handleAuthorFilterChange}
+                            onTitleFilterChange={this.handleTitleFilterChange}
+                            onYearFilterChange={this.handleYearFilterChange}
+                            onClearFilters={this.handleClearFilters}
+                        />
+                        <div className="card p-3 mt-3 mb-5">
+                            <BookList
+                                filters={this.state.filters}
+                                books={this.state.books}
+                                onBooksChange={(newbooks, event)=>this.handleBooksChange(newbooks, event)}
+                            />
+                            <BottomButtons
+                                selectedItems={this.state.books
+                                    .filter(b => b.checked)
+                                    .filter(book => {
+                                        return book.author.includes(this.state.filters.author)
+                                            && book.title.includes(this.state.filters.title)
+                                            && book.year.includes(this.state.filters.year)
+                                    }
+                                )}
+                                updateItem={(data) => this.updateItem(data)}
+                                createItem={(data) => this.createItem(data)}
+                                deleteSelectedItems={this.deleteSelectedItems}
+                            />
+                        </div>
+                    </div>
+                </div>
+                );
+            }
+        }
+        class BottomButtons extends React.Component {
+            constructor(props) {
+                super(props)
+                this.deleteSelectedItems = this.deleteSelectedItems.bind(this);
+            }
+            deleteSelectedItems () {
+                axios({
+                        method: 'post',
+                        url: '/Home/Delete',
+                        data: this.props.selectedItems.reduce((acc, curr) => {
+                            acc.push(curr.id)
+                            return acc
+                        }, [])
+                    })
+                    .then(response => {
+                        console.log('axios')
+                        this.props.deleteSelectedItems()
+                    })
+                    .catch(error => console.log('error'))
+            }
+            render() {
+                return (
+                <div className="row">
+                    <div className="col-4">
+                        <button
+                            className="btn btn-primary w-100"
+                            data-toggle="modal"
+                            data-target="#addNewBookModal"
+                        >
+                            Add New Book
+                        </button>
+                    </div>
+                    <div className="col-4">
+                        <button
+                            className="btn btn-primary w-100"
+                            data-toggle="modal"
+                            data-target="#editSelectedBookModal"
+                        >
+                            Edit Selected Book
+                        </button>
+                    </div>
+                    <div className="col-4">
+                        <button
+                            className="btn btn-primary w-100"
+                            onClick={this.deleteSelectedItems}
+                        >
+                            Delete Selected Books
+                        </button>
+                    </div>
+                    <Modal
+                        label="addNewBookModalLabel"
+                        name="addNewBookModal"
+                        modalTitle="Add New Book"
+                        isEdit={false}
+                        createItem={(data) => this.props.createItem(data)}
+                    />
+                    <Modal
+                        label="editSelectedBookModalLabel"
+                        name="editSelectedBookModal"
+                        modalTitle="Edit Selected Book"
+                        isEdit={true}
+                        selectedItems={this.props.selectedItems}
+                        error={this.props.selectedItems.filter(b =>b.checked).length !== 1}
+                        updateItem={(data) => this.props.updateItem(data)}
+                    />
+                </div>
+                );
+            }
+        }
+        class Modal extends React.Component {
+            constructor(props) {
+                super(props)
+                this.sendEditRequest = this.sendEditRequest.bind(this);
+                this.sendCreateRequest = this.sendCreateRequest.bind(this);
+                this.state = {
+                    id: (this.props.selectedItems && this.props.selectedItems.length === 1 && this.props.selectedItems[0].id) || "",
+                    author: (this.props.selectedItems && this.props.selectedItems.length === 1 && this.props.selectedItems[0].author) || "",
+                    title: (this.props.selectedItems && this.props.selectedItems.length === 1 && this.props.selectedItems[0].title) || "",
+                    year: (this.props.selectedItems && this.props.selectedItems.length === 1 && this.props.selectedItems[0].year) || "",
+                }
+            }
+            componentWillReceiveProps(nextProps) {
+                this.state = {
+                    id: (nextProps.selectedItems && nextProps.selectedItems.length === 1 && nextProps.selectedItems[0].id) || "",
+                    author: (nextProps.selectedItems && nextProps.selectedItems.length === 1 && nextProps.selectedItems[0].author) || "",
+                    title: (nextProps.selectedItems && nextProps.selectedItems.length === 1 && nextProps.selectedItems[0].title) || "",
+                    year: (nextProps.selectedItems && nextProps.selectedItems.length === 1 && nextProps.selectedItems[0].year) || "",
+                }
+            }
+            componentDidMount() {
+                $('#addNewBookModal').on('shown.bs.modal', function () {
+                    $('#addNewBookModal').trigger('focus')
+                })
+            }
+            handleAuthorInput(e){
+                this.setState({ author: e.target.value })
+            }
+            handleTitleInput(e){
+                this.setState({ title: e.target.value })
+            }
+            handleYearInput(e) {
+                if(/^\d{0,5}$/.test(e.target.value)) {
+                    this.setState({
+                        year: e.target.value
+                    })
+                }
+            }
+            sendCreateRequest () {
+                axios({
+                        method: 'post',
+                        url: '/Home/Create',
+                        data: {
+                            "Author": this.state.author,
+                            "Title": this.state.title,
+                            "Year": this.state.year,
+                        }
+                    })
+                    .then(response => {
+                        this.props.createItem(response.data.value)
+                    })
+                    .catch(error => console.log('error'))
+            }
+            sendEditRequest () {
+                axios({
+                        method: 'post',
+                        url: '/Home/Update',
+                        data: {
+                            "Id": this.state.id,
+                            "Author": this.state.author,
+                            "Title": this.state.title,
+                            "Year": this.state.year,
+                        }
+                    })
+                    .then(response => {
+                        this.props.updateItem(response.data.value)
+                    })
+                    .catch(error => console.log('error'))
+            }
+            render() {
+                return (
+                    <div className="modal fade" id={this.props.name} tabindex="-1" role="dialog" aria-labelledby={this.props.label} aria-hidden="true">
+                        <div className="modal-dialog" role="document">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    {this.props.error
+                                    ? 	<h5 className="modal-title" id={this.props.label}>Error</h5>
+                                    : 	<div className="d-flex w-100">
+                                        <h5 className="modal-title" id={this.props.label}>{this.props.modalTitle}</h5>
+                                        <button type="button" className="close ml-auto" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    }
+                                </div>
+                                <div className="modal-body">
+                                    {this.props.error
+                                    ? 	<strong>Please select exactly one item to edit</strong>
+                                    :	<div>
+                                        <div className="form-row">
+                                            <label for="author"
+                                                    className="col-12 col-form-label">
+                                                Author
+                                            </label>
+                                            <div className="col-12">
+                                                <input
+                                                    id={this.props.name + "author" }
+                                                    type="text"
+                                                    className="form-control"
+                                                    aria-describedby="Author"
+                                                    placeholder="Author"
+                                                    name={this.props.name + "author" }
+                                                    value={this.state.author}
+                                                    onInput={this.handleAuthorInput.bind(this)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <label
+                                                for={this.props.name + "title" }
+                                                className="col-12 col-form-label"
+                                            >
+                                                Title
+                                            </label>
+                                            <div className="col-12">
+                                                <input
+                                                    id={this.props.name + "title" }
+                                                    type="text"
+                                                    className="form-control"
+                                                    aria-describedby="Title"
+                                                    placeholder="Title"
+                                                    name={this.props.name + "title" }
+                                                    value={this.state.title}
+                                                    onInput={this.handleTitleInput.bind(this)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <label
+                                                for={this.props.name + "year" }
+                                                className="col-12 col-form-label"
+                                            >
+                                                Year
+                                            </label>
+                                            <div className="col-12">
+                                                <input
+                                                    id={this.props.name + "year" }
+                                                    type="text"
+                                                    className="form-control"
+                                                    aria-describedby="year"
+                                                    placeholder="Year"
+                                                    name={this.props.name + "year" }
+                                                    value={this.state.year}
+                                                    onInput={this.handleYearInput.bind(this)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    }
+                                </div>
+                                <div className="modal-footer">
 
-<div id="myCarousel" class="carousel slide" data-ride="carousel" data-interval="6000">
-    <ol class="carousel-indicators">
-        <li data-target="#myCarousel" data-slide-to="0" class="active"></li>
-        <li data-target="#myCarousel" data-slide-to="1"></li>
-        <li data-target="#myCarousel" data-slide-to="2"></li>
-    </ol>
-    <div class="carousel-inner" role="listbox">
-        <div class="item active">
-            <img src="~/images/banner1.svg" alt="ASP.NET" class="img-responsive" />
-            <div class="carousel-caption" role="option">
-                <p>
-                    Learn how to build ASP.NET apps that can run anywhere.
-                    <a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkID=525028&clcid=0x409">
-                        Learn More
-                    </a>
-                </p>
-            </div>
-        </div>
-        <div class="item">
-            <img src="~/images/banner2.svg" alt="Visual Studio" class="img-responsive" />
-            <div class="carousel-caption" role="option">
-                <p>
-                    There are powerful new features in Visual Studio for building modern web apps.
-                    <a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkID=525030&clcid=0x409">
-                        Learn More
-                    </a>
-                </p>
-            </div>
-        </div>
-        <div class="item">
-            <img src="~/images/banner3.svg" alt="Microsoft Azure" class="img-responsive" />
-            <div class="carousel-caption" role="option">
-                <p>
-                    Learn how Microsoft's Azure cloud platform allows you to build, deploy, and scale web apps.
-                    <a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkID=525027&clcid=0x409">
-                        Learn More
-                    </a>
-                </p>
-            </div>
-        </div>
-    </div>
-    <a class="left carousel-control" href="#myCarousel" role="button" data-slide="prev">
-        <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
-        <span class="sr-only">Previous</span>
-    </a>
-    <a class="right carousel-control" href="#myCarousel" role="button" data-slide="next">
-        <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
-        <span class="sr-only">Next</span>
-    </a>
-</div>
-
-<div class="row">
-    <div class="col-md-3">
-        <h2>Application uses</h2>
-        <ul>
-            <li>Sample pages using ASP.NET Core MVC</li>
-            <li>Theming using <a href="https://go.microsoft.com/fwlink/?LinkID=398939">Bootstrap</a></li>
-        </ul>
-    </div>
-    <div class="col-md-3">
-        <h2>How to</h2>
-        <ul>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkID=398600">Add a Controller and View</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkId=699315">Manage User Secrets using Secret Manager.</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkId=699316">Use logging to log a message.</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkId=699317">Add packages using NuGet.</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkId=699319">Target development, staging or production environment.</a></li>
-        </ul>
-    </div>
-    <div class="col-md-3">
-        <h2>Overview</h2>
-        <ul>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkId=518008">Conceptual overview of what is ASP.NET Core</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkId=699320">Fundamentals of ASP.NET Core such as Startup and middleware.</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkId=398602">Working with Data</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkId=398603">Security</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkID=699321">Client side development</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkID=699322">Develop on different platforms</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkID=699323">Read more on the documentation site</a></li>
-        </ul>
-    </div>
-    <div class="col-md-3">
-        <h2>Run &amp; Deploy</h2>
-        <ul>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkID=517851">Run your app</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkID=517853">Run tools such as EF migrations and more</a></li>
-            <li><a href="https://go.microsoft.com/fwlink/?LinkID=398609">Publish to Microsoft Azure Web Apps</a></li>
-        </ul>
-    </div>
-</div>
+                                    {this.props.error
+                                    ? 	<button
+                                            type="button"
+                                            className="btn
+                                            btn-secondary"
+                                            data-dismiss="modal"
+                                        >
+                                            Ok
+                                        </button>
+                                    :	<div>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary mr-3"
+                                            data-dismiss="modal"
+                                        >
+                                            Close
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={this.props.isEdit ? this.sendEditRequest : this.sendCreateRequest}
+                                            data-dismiss="modal"
+                                        >
+                                            Save changes
+                                        </button>
+                                    </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    );
+            }
+        }
+        class Item extends React.Component {
+            constructor(props) {
+                super(props)
+                this.state = {
+                    isChecked: props.book.checked,
+                }
+            }
+            componentWillReceiveProps(nextProps) {
+                this.setState({
+                    isChecked: nextProps.book.checked,
+                })
+            }
+            render() {
+                return (
+                    <tr>
+                        <td>
+                            <input
+                                type="checkbox"
+                                class="form-check-input"
+                                id={this.props.index}
+                                value={true}
+                                checked={this.props.book.checked}
+                                onChange={this.props.onCheckToggle}
+                            />
+                        </td>
+                        <td>
+                            {this.props.book.author}
+                        </td>
+                        <td>
+                            {this.props.book.title}
+                        </td>
+                        <td>
+                            {this.props.book.year}
+                        </td>
+                    </tr>
+                    );
+            }
+        }
+        class BookList extends React.Component {
+            constructor(props) {
+                super(props)
+                this.handleCheckToggle = this.handleCheckToggle.bind(this);
+                this.state = {
+                    books: props.books,
+                    filters: props.filters
+                }
+            }
+            componentWillReceiveProps(nextProps) {
+                this.setState({
+                    books: Array.from(nextProps.books),
+                    filters: nextProps.filters
+                })
+            }
+            handleCheckToggle (book, event) {
+                let newBooks = Array.from(this.state.books)
+                const bookRef = newBooks.find(b => b.id === book.id)
+                if (bookRef) {
+                    bookRef.checked = event.target.checked
+                }
+                event.persist()
+                this.props.onBooksChange(newBooks, event)
+            }
+            render() {
+                return (
+                <div className="table-wrapper-scroll-y my-custom-scrollbar mb-3">
+                    <table className="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th scope="col">
+                                    Selected
+                                </th>
+                                <th scope="col">
+                                    Author
+                                </th>
+                                <th scope="col">
+                                    Title
+                                </th>
+                                <th scope="col">
+                                    Year
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            { this.state.books
+                                .filter(book => {
+                                    return book.author.includes(this.props.filters.author)
+                                        && book.title.includes(this.props.filters.title)
+                                        && book.year.includes(this.props.filters.year)
+                                })
+                                .map((book, index) =>
+                                <Item
+                                    key={book.id}
+                                    book={book}
+                                    onCheckToggle={(event) => this.handleCheckToggle(book, event)}
+                                />) }
+                        </tbody>
+                    </table>
+                </div>
+                );
+            }
+        }
+        class Filters extends React.Component {
+            constructor(props) {
+                super(props)
+                this.clearFilters = this.clearFilters.bind(this);
+                this.state = {
+                    author: "",
+                    title: "",
+                    year: "",
+                }
+            }
+            handleAuthorInput (e) {
+                this.props.onAuthorFilterChange(e)
+                this.setState({ author: e.target.value })
+            }
+            handleTitleInput (e) {
+                this.props.onTitleFilterChange(e)
+                this.setState({ title: e.target.value })
+            }
+            handleYearInput (e) {
+                if(/^\d{0,5}$/.test(e.target.value)) {
+                    this.props.onYearFilterChange(e)
+                    this.setState({
+                        year: e.target.value
+                    })
+                }
+            }
+            clearFilters (e) {
+                this.props.onClearFilters(e)
+                this.state = {
+                    author: "",
+                    title: "",
+                    year: "",
+                }
+            }
+            render() {
+                return (
+                    <div className="card">
+                        <div className="ml-2 mt-2">
+                            <h5 class="card-title">Filter</h5>
+                        </div>
+                        <div className="row mx-3 mb-2">
+                            <div className="col-sm-12 col-md-4">
+                                <div className="form-row">
+                                    <label
+                                        for="author"
+                                        className="col-12"
+                                    >
+                                        Author
+                                    </label>
+                                    <div className="col-12">
+                                        <input
+                                            id="author"
+                                            type="text"
+                                            className="form-control"
+                                            aria-describedby="emailHelp"
+                                            placeholder="Author"
+                                            name="author"
+                                            value={this.state.author}
+                                            onInput={this.handleAuthorInput.bind(this)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-sm-12 col-md-4">
+                                <div className="form-row mb-2">
+                                    <label
+                                        for="title"
+                                        className="col-12"
+                                    >
+                                        Title
+                                    </label>
+                                    <div className="col-12">
+                                        <input
+                                            id="title"
+                                            type="text"
+                                            className="form-control"
+                                            aria-describedby="emailHelp"
+                                            placeholder="Title"
+                                            name="title"
+                                            value={this.state.title}
+                                            onInput={this.handleTitleInput.bind(this)}
+                                         />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-sm-12 col-md-2 col-lg-3">
+                                <div className="form-row">
+                                    <label
+                                        for="year"
+                                        className="col-12"
+                                    >
+                                        Year
+                                    </label>
+                                    <div className="col-12">
+                                        <input
+                                            id="year"
+                                            type="text"
+                                            className="form-control"
+                                            aria-describedby="emailHelp"
+                                            placeholder="Year"
+                                            name="year"
+                                            value={this.state.year}
+                                            onInput={this.handleYearInput.bind(this)}
+                                         />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-sm-12 col-md-2 col-lg-1">
+                                <label
+                                    for="clear"
+                                    className="col-12 d-sm-none d-md-block"
+                                >
+                                &nbsp;
+                                </label>
+                                <button
+                                    type="button"
+                                    id="clear"
+                                    className="btn btn-primary mt-sm-3 mt-md-0"
+                                    onClick={this.clearFilters}
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    );
+            }
+        }
+        ReactDOM.render(
+            <App />,
+            document.getElementById('app')
+        )
+    </script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+            integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+            crossorigin="anonymous">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+            integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+            crossorigin="anonymous">
+    </script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+            crossorigin="anonymous">
+    </script>
+</body>
+</html>

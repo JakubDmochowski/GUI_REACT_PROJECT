@@ -57,6 +57,18 @@ namespace EguiReact
                 routes.MapRoute(
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
+                routes.MapRoute(
+                    name: "List",
+                    template: "{controller=Home}/{action=List}");
+                routes.MapRoute(
+                    name: "Update",
+                    template: "{controller=Home}/{action=Update}");
+                routes.MapRoute(
+                    name: "Delete",
+                    template: "{controller=Home}/{action=Delete}");
+                routes.MapRoute(
+                    name: "Create",
+                    template: "{controller=Home}/{action=Create}");
             });
         }
     }
